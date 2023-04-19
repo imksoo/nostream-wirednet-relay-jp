@@ -41,7 +41,7 @@ services:
     volumes:
       - ${PWD}/.nostr:/home/node/.nostr
     ports:
-      - 127.0.0.1:8008:8008
+      - 8008:8008
     depends_on:
       nostream-cache:
         condition: service_healthy
@@ -49,7 +49,7 @@ services:
         condition: service_healthy
       nostream-migrate:
         condition: service_completed_successfully
-    restart: on-failure
+    restart: always
     networks:
       default:
   nostream-db:
