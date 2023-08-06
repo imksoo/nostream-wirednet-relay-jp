@@ -181,15 +181,33 @@ export const identifyEvent = async (event: UnidentifiedEvent): Promise<UnsignedE
   return { ...event, id }
 }
 
-export function getRelayPrivateKey(relayUrl: string): string {
-  if (process.env.RELAY_PRIVATE_KEY) {
-    return process.env.RELAY_PRIVATE_KEY
+let privateKeyCache: string | undefined
+export function getRelayPrivateKey(secret?: string): string {
+  if (privateKeyCache) {
+    return privateKeyCache
   }
 
-  return deriveFromSecret(relayUrl).toString('hex')
+  if (process.env.RELAY_PRIVATE_KEY) {
+    privateKeyCache = process.env.RELAY_PRIVATE_KEY
+
+    return privateKeyCache
+  }
+
+  privateKeyCache = deriveFromSecret(secret).toString('hex')
+
+  return privateKeyCache
 }
 
-export const getPublicKey = (privkey: string | Buffer) => Buffer.from(secp256k1.getPublicKey(privkey, true)).subarray(1).toString('hex')
+const publicKeyCache: Record<string, string> = {}
+export const getPublicKey = (privkey: string) => {
+  if (privkey in publicKeyCache) {
+    return publicKeyCache[privkey]
+  }
+
+  publicKeyCache[privkey] = secp256k1.utils.bytesToHex(secp256k1.getPublicKey(privkey, true).subarray(1))
+
+  return publicKeyCache[privkey]
+}
 
 export const signEvent = (privkey: string | Buffer | undefined) => async (event: UnsignedEvent): Promise<Event> => {
   const sig = await secp256k1.schnorr.sign(event.id, privkey as any)
@@ -267,16 +285,19 @@ export const isDeleteEvent = (event: Event): boolean => {
 }
 
 export const isExpiredEvent = (event: Event): boolean => {
-  if (!event.tags.length) return false
+  if (!event.tags.length) {
+    return false
+  }
 
   const expirationTime = getEventExpiration(event)
 
-  if (!expirationTime) return false
+  if (!expirationTime) {
+    return false
+  }
 
-  const date = new Date()
-  const isExpired = expirationTime <= Math.floor(date.getTime() / 1000)
+  const now = Math.floor(new Date().getTime() / 1000)
 
-  return isExpired
+  return expirationTime <= now
 }
 
 export const getEventExpiration = (event: Event): number | undefined => {
@@ -284,7 +305,8 @@ export const getEventExpiration = (event: Event): number | undefined => {
   if (!rawExpirationTime) return
 
   const expirationTime = Number(rawExpirationTime)
-  if ((Number.isSafeInteger(expirationTime) && Math.log10(expirationTime))) {
+
+  if ((Number.isSafeInteger(expirationTime) && Math.log10(expirationTime) < 10)) {
     return expirationTime
   }
 }

@@ -16,10 +16,8 @@ import Sinon from 'sinon'
 import { connect, createIdentity, createSubscription, sendEvent } from './helpers'
 import { getMasterDbClient, getReadReplicaDbClient } from '../../../src/database/client'
 import { AppWorker } from '../../../src/app/worker'
-import { CacheClient } from '../../../src/@types/cache'
 import { DatabaseClient } from '../../../src/@types/base'
 import { Event } from '../../../src/@types/event'
-import { getCacheClient } from '../../../src/cache/client'
 import { SettingsStatic } from '../../../src/utils/settings'
 import { workerFactory } from '../../../src/factories/worker-factory'
 
@@ -29,13 +27,12 @@ let worker: AppWorker
 
 let dbClient: DatabaseClient
 let rrDbClient: DatabaseClient
-let cacheClient: CacheClient
 
 export const streams = new WeakMap<WebSocket, Observable<unknown>>()
 
 BeforeAll({ timeout: 1000 }, async function () {
   process.env.RELAY_PORT = '18808'
-  cacheClient = getCacheClient()
+  process.env.SECRET = Math.random().toString().repeat(6)
   dbClient = getMasterDbClient()
   rrDbClient = getReadReplicaDbClient()
   await dbClient.raw('SELECT 1=1')
@@ -43,11 +40,12 @@ BeforeAll({ timeout: 1000 }, async function () {
   const settings = SettingsStatic.createSettings()
 
   SettingsStatic._settings = pipe(
-    assocPath( ['limits', 'event', 'createdAt', 'maxPositiveDelta'], 0),
-    assocPath( ['limits', 'message', 'rateLimits'], []),
-    assocPath( ['limits', 'event', 'rateLimits'], []),
-    assocPath( ['limits', 'invoice', 'rateLimits'], []),
-    assocPath( ['limits', 'connection', 'rateLimits'], []),
+    assocPath(['payments', 'enabled'], false),
+    assocPath(['limits', 'event', 'createdAt', 'maxPositiveDelta'], 0),
+    assocPath(['limits', 'message', 'rateLimits'], []),
+    assocPath(['limits', 'event', 'rateLimits'], []),
+    assocPath(['limits', 'invoice', 'rateLimits'], []),
+    assocPath(['limits', 'connection', 'rateLimits'], []),
   )(settings) as any
 
   worker = workerFactory()
@@ -56,7 +54,7 @@ BeforeAll({ timeout: 1000 }, async function () {
 
 AfterAll(async function() {
   worker.close(async () => {
-    await Promise.all([cacheClient.disconnect(), dbClient.destroy(), rrDbClient.destroy()])
+    await Promise.all([dbClient.destroy(), rrDbClient.destroy()])
   })
 })
 
@@ -80,11 +78,10 @@ After(async function () {
   const dbClient = getMasterDbClient()
 
   await dbClient('events')
-    .where({
-      event_pubkey: Object
+    .whereIn('event_pubkey', Object
         .values(this.parameters.identities as Record<string, { pubkey: string }>)
         .map(({ pubkey }) => Buffer.from(pubkey, 'hex')),
-    }).del()
+    ).delete()
   this.parameters.identities = {}
 })
 
@@ -94,14 +91,14 @@ Given(/someone called (\w+)/, async function(name: string) {
   this.parameters.clients[name] = connection
   this.parameters.subscriptions[name] = []
   this.parameters.events[name] = []
-  const subject = new Subject()
-  connection.once('close', subject.next.bind(subject))
+  const close = new Subject()
+  connection.once('close', close.next.bind(close))
 
-  const project = (raw: MessageEvent) => JSON.parse(raw.data.toString('utf8'))
+  const projection = (raw: MessageEvent) => JSON.parse(raw.data.toString('utf8'))
 
   const replaySubject = new ReplaySubject(2, 1000)
 
-  fromEvent(connection, 'message').pipe(map(project) as any,takeUntil(subject)).subscribe(replaySubject)
+  fromEvent(connection, 'message').pipe(map(projection) as any,takeUntil(close)).subscribe(replaySubject)
 
   streams.set(
     connection,

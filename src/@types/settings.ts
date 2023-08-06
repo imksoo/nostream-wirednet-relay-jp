@@ -82,6 +82,10 @@ export interface EventLimits {
 export interface ClientSubscriptionLimits {
   maxSubscriptions?: number
   maxFilters?: number
+  maxFilterValues?: number
+  maxLimit?: number
+  minPrefixLength?: number
+  maxSubscriptionIdLength?: number
 }
 
 export interface ClientLimits {
@@ -122,6 +126,7 @@ export interface Worker {
 
 export interface FeeScheduleWhitelists {
   pubkeys?: Pubkey[]
+  event_kinds?: (EventKinds | [EventKinds, EventKinds])[]
 }
 
 export interface FeeSchedule {
@@ -152,15 +157,32 @@ export interface ZebedeePaymentsProcessor {
   ipWhitelist: string[]
 }
 
-export interface LNbitsPaymentProcessor {
+export interface NodelessPaymentsProcessor {
+  baseURL: string
+  storeId: string
+}
+
+export interface LNbitsPaymentsProcessor {
   baseURL: string
   callbackBaseURL: string
+}
+
+export interface OpenNodePaymentsProcessor {
+  baseURL: string
+  callbackBaseURL: string
+}
+
+export interface NodelessPaymentsProcessor {
+  baseURL: string
+  storeId: string
 }
 
 export interface PaymentsProcessors {
   lnurl?: LnurlPaymentsProcessor,
   zebedee?: ZebedeePaymentsProcessor
-  lnbits?: LNbitsPaymentProcessor
+  lnbits?: LNbitsPaymentsProcessor
+  nodeless?: NodelessPaymentsProcessor
+  opennode?: OpenNodePaymentsProcessor
 }
 
 export interface Local {
