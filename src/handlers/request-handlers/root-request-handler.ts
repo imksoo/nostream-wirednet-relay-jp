@@ -74,7 +74,7 @@ export const rootRequestHandler = (request: Request, response: Response, next: N
     response.redirect(301, '/invoices')
   } else {
     response.redirect(301, '/index.html')
-    response.status(200).setHeader('content-type', 'text/plain; charset=utf8').send('Please use a Nostr client to connect.')
+    // response.status(200).setHeader('content-type', 'text/plain; charset=utf8').send('Please use a Nostr client to connect.')
   }
   next()
 }
