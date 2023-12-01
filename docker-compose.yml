@@ -76,7 +76,7 @@ services:
     networks:
       default:
   nostream-db:
-    image: postgres
+    image: postgres:15
     container_name: nostream-db
     environment:
       POSTGRES_DB: nostr_ts_relay
@@ -132,6 +132,21 @@ services:
     networks:
       default:
         ipv4_address: 10.10.10.254
+  pgadmin:
+    image: dpage/pgadmin4:8
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: kirino.minato@gmail.com
+      PGADMIN_DEFAULT_PASSWORD: nostr_ts_relay
+      TZ: Asia/Tokyo
+    depends_on:
+      - nostream-db
+    ports:
+      - "5080:80"
+    networks:
+      default:
+    restart: always
 
 networks:
   default:
@@ -143,3 +158,4 @@ networks:
 
 volumes:
   cache:
+  pgadmin:
