@@ -66,6 +66,8 @@ export class EventRepository implements IEventRepository {
     }
     const queries = filters.map((currentFilter) => {
       const builder = this.readReplicaDbClient<DBEvent>('events')
+        .leftJoin('event_tags', 'events.event_id', 'event_tags.event_id')
+        .select('events.*', 'event_tags.event_id as event_tags_event_id')
 
       forEachObjIndexed((tableFields: string[], filterName: string | number) => {
         builder.andWhere((bd) => {
@@ -107,7 +109,7 @@ export class EventRepository implements IEventRepository {
         })
       })({
         authors: ['event_pubkey', 'event_delegator'],
-        ids: ['event_id'],
+        ids: ['events.event_id'],
       })
 
       if (Array.isArray(currentFilter.kinds)) {
@@ -140,10 +142,8 @@ export class EventRepository implements IEventRepository {
               isEmpty,
               () => andWhereRaw('1 = 0', bd),
               forEach((criterion: string) => void orWhereRaw(
-                '"event_tags" @> ?',
-                [
-                  JSON.stringify([[filterName[1], criterion]]) as any,
-                ],
+                'event_tags.tag_name = ? AND event_tags.tag_value = ?',
+                [filterName[1], criterion],
                 bd,
               )),
             )(criteria)
