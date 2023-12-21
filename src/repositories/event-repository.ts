@@ -66,8 +66,6 @@ export class EventRepository implements IEventRepository {
     }
     const queries = filters.map((currentFilter) => {
       const builder = this.readReplicaDbClient<DBEvent>('events')
-        .leftJoin('event_tags', 'events.event_id', 'event_tags.event_id')
-        .select('events.*', 'event_tags.event_id as event_tags_event_id')
 
       forEachObjIndexed((tableFields: string[], filterName: string | number) => {
         builder.andWhere((bd) => {
@@ -133,10 +131,12 @@ export class EventRepository implements IEventRepository {
       const andWhereRaw = invoker(1, 'andWhereRaw')
       const orWhereRaw = invoker(2, 'orWhereRaw')
 
+      let isTagQuery = false
       pipe(
         toPairs,
         filter(pipe(nth(0) as () => string, isGenericTagQuery)) as any,
         forEach(([filterName, criteria]: [string, string[]]) => {
+          isTagQuery = true
           builder.andWhere((bd) => {
             ifElse(
               isEmpty,
@@ -150,6 +150,24 @@ export class EventRepository implements IEventRepository {
           })
         }),
       )(currentFilter as any)
+
+      if (isTagQuery) {
+        builder.leftJoin('event_tags', 'events.event_id', 'event_tags.event_id')
+          .select("events.id",
+            "events.event_id",
+            "events.event_pubkey",
+            "events.event_kind",
+            "events.event_created_at",
+            "events.event_content",
+            "events.event_tags",
+            "events.event_signature",
+            "events.first_seen",
+            "events.event_delegator",
+            "events.deleted_at",
+            "events.event_deduplication",
+            "events.remote_address",
+            "events.expires_at")
+      }
 
       return builder
     })
