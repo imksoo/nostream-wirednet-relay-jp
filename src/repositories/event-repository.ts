@@ -153,20 +153,7 @@ export class EventRepository implements IEventRepository {
 
       if (isTagQuery) {
         builder.leftJoin('event_tags', 'events.event_id', 'event_tags.event_id')
-          .select("events.id",
-            "events.event_id",
-            "events.event_pubkey",
-            "events.event_kind",
-            "events.event_created_at",
-            "events.event_content",
-            "events.event_tags",
-            "events.event_signature",
-            "events.first_seen",
-            "events.event_delegator",
-            "events.deleted_at",
-            "events.event_deduplication",
-            "events.remote_address",
-            "events.expires_at")
+          .select("events.*")
       }
 
       return builder
